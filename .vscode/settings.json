@@ -1,0 +1,3 @@
+{
+  "search.exclude": { "legacy/**": true, "dist/**": true }
+}

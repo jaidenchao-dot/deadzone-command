@@ -115,5 +115,8 @@ Tip: comments tagged `// Update N:` mark which update introduced a piece of logi
   hashes before vs after (this is how the split from V9 was verified: identical state after 3 simulated minutes).
 - Check performance (`ms per updateSimulation`) and play-balance (idle base survival) when changing AI / physics.
 
-## Legacy
-`legacy/DEADZONE_COMMAND_V9.html` is the original single-file version this project was split from. Reference only.
+## Legacy (DO NOT TOUCH)
+- `legacy/DEADZONE_COMMAND_V9.html` is the old single-file version this project was split from. It is an archive only.
+- **Never edit, rebuild or delete anything in `legacy/`.** It is not part of the game, the build or the tests.
+- **Do not read or search it during updates.** All current code is in `index.html`, `src/` and `scripts/`. Searching the legacy file returns outdated duplicates of every function. Exclude `legacy/` from searches.
+- Only open it if the user explicitly asks to compare against the original V9.
