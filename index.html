@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEADZONE COMMAND — NYC Reclamation Tactical RTS</title>
+    <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+<div id="app">
+    <!-- Top Tactical Bar -->
+    <div id="top-bar">
+        <div class="res-group">
+            <div class="res-pill res-scrap" title="Scrap Metal — Harvested automatically by Depot Collectors and Supply Crates">SCRAP: <span id="ui-scrap">550</span></div>
+            <div class="res-pill res-fuel" title="JP-8 Fuel — Used for Vehicles, Battalions, Artillery, and Tech Upgrades">FUEL: <span id="ui-fuel">200</span></div>
+            <div class="res-pill res-pop" title="Command Population Limit — Build Barracks, Battalion HQ, or Motor Pool to expand">POP: <span id="ui-pop">5/16</span></div>
+        </div>
+
+        <div class="status-group">
+            <div class="res-pill res-sectors" title="NYC Districts Reclaimed — Eradicate hives and clear zombies in each district">DISTRICTS: <span id="ui-districts">1/6</span></div>
+            <div class="res-pill res-hives" title="Remaining Mutated Hives across New York City">HIVES: <span id="ui-hives">7</span></div>
+            <div class="res-pill res-surge" title="Countdown until next City-Wide Zombie Surge wave">SURGE: <span id="ui-surge">01:30</span></div>
+        </div>
+
+        <div class="top-controls">
+            <button id="btn-zoom-out" class="tactical-btn" title="Zoom Out [-]">-</button>
+            <span id="zoom-readout" style="font-size:16px; color:#8b949e; min-width:36px; text-align:center;">1.0x</span>
+            <button id="btn-zoom-in" class="tactical-btn" title="Zoom In [+]">+</button>
+            <button id="btn-rotate" class="tactical-btn" style="display:none; border-color:#d29922; color:#ffd166;" title="Rotate Structure [R]">ROTATE [R]</button>
+            <button id="btn-pause" class="tactical-btn" title="Toggle Tactical Pause [Space]">PAUSE [SPACE]</button>
+            <button id="btn-center-hq" class="tactical-btn" title="Center Camera on HQ [Home]">HQ</button>
+            <button id="btn-mute" class="tactical-btn" title="Toggle Tactical Audio">SFX: ON</button>
+            <button id="btn-help" class="tactical-btn" title="Mission Briefing & Hotkeys">?</button>
+        </div>
+    </div>
+
+    <!-- Main Tactical Canvas Viewport -->
+    <div id="game-wrapper">
+        <canvas id="game-canvas"></canvas>
+        <div id="radio-banner">HQ ONLINE — BATTERY PARK LZ ESTABLISHED.</div>
+        <div id="pause-banner">⏸ TACTICAL PAUSE ACTIVE — ISSUE ORDERS, FORMATIONS &amp; QUEUES FREELY</div>
+        <div id="intel-hud">
+            <button id="btn-intel" class="tactical-btn" style="border-color:#1b5e63; color:#56d4dd;" title="Toggle Survivor Intel Overlay — estimated survivor signal zones [J]">📡 INTEL [J]</button>
+            <div class="res-pill res-survivors" id="pill-survivors" title="Survivors rescued and delivered to HQ, Barracks or Battalion HQ">SURVIVORS: <span id="ui-survivors">0</span></div>
+            <button id="btn-infinite" class="tactical-btn" title="Toggle Infinite Resources (Scrap & Fuel never run out while ON)">∞ RESOURCES: OFF</button>
+            <button id="btn-saveload" class="tactical-btn" style="border-color:#1f6feb; color:#a5d6ff;" title="Save / Load Game (game pauses while the menu is open)">💾 SAVE / LOAD</button>
+        </div>
+    </div>
+
+    <!-- Squad Control Groups & Preset Formations Bar -->
+    <div id="squad-dock">
+        <div class="dock-section" id="squad-groups-bar">
+            <span class="dock-label">SQUADS:</span>
+            <button id="btn-create-group" class="tactical-btn" style="padding:1px 8px; font-size:15px; border-color:#3fb950; color:#7ee787;" title="Assign selected units to next open Squad Slot">+ CREATE GROUP</button>
+            <div id="group-chips-container" style="display:inline-flex; gap:4px;"></div>
+        </div>
+
+        <div class="dock-section">
+            <span class="dock-label">FORMATION:</span>
+            <button class="form-btn active" data-formation="line" title="Line Abreast [F1]">LINE [F1]</button>
+            <button class="form-btn" data-formation="wedge" title="Armored Assault Wedge [F2]">WEDGE [F2]</button>
+            <button class="form-btn" data-formation="column" title="Street Convoy Column [F3]">COLUMN [F3]</button>
+            <button class="form-btn" data-formation="perimeter" title="360° Intersection Perimeter Box [F4]">BOX [F4]</button>
+        </div>
+    </div>
+
+    <!-- Bottom RTS Console -->
+    <div id="bottom-console">
+        <div id="minimap-frame">
+            <canvas id="minimap-canvas" width="156" height="156"></canvas>
+        </div>
+
+        <div id="selection-panel">
+            <div id="portrait-box" style="display:none;">
+                <canvas id="portrait-canvas" width="56" height="56"></canvas>
+                <div id="hp-bar-outer"><div id="hp-bar-inner"></div></div>
+            </div>
+
+            <div id="details-box">
+                <div id="sel-title">OPERATION LIBERTY — CITY RECLAMATION</div>
+                <div id="sel-stats"><span>SELECT UNITS OR BUILDINGS TO COMMAND</span></div>
+                <div id="sel-desc">Advance block-by-block through ruined New York City, destroy all 7 mutated hives, and clear zombie infestations across all 6 city districts.</div>
+                <div id="district-overview-list"></div>
+                <div id="passenger-bay"></div>
+                <div id="supply-inv"></div>
+                <div id="queue-container">
+                    <span id="queue-label" style="font-size:15px; color:#f2cc60;">TRAINING...</span>
+                    <div id="queue-progress-bg"><div id="queue-progress-fill"></div></div>
+                    <span id="queue-count" style="font-size:15px; color:#c9d1d9;">x1</span>
+                </div>
+            </div>
+
+            <div id="multi-grid"></div>
+        </div>
+
+        <div id="command-grid"></div>
+    </div>
+</div>
+
+<!-- Dynamic Command Tooltip -->
+<div id="cmd-tooltip">
+    <div id="tt-title">Command</div>
+    <div id="tt-cost">Cost</div>
+    <div id="tt-desc">Description</div>
+</div>
+
+<!-- Start / Briefing Modal -->
+<div id="start-modal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="modal-title">DEADZONE COMMAND</div>
+        <div class="modal-sub" id="modal-sub">OPERATION LIBERTY — NEW YORK CITY RECLAMATION RTS</div>
+        <div class="home-tabs">
+            <button class="home-tab active" data-tab="briefing">BRIEFING</button>
+            <button class="home-tab" data-tab="map">CITY MAP</button>
+            <button class="home-tab" data-tab="settings">SETTINGS</button>
+            <button class="home-tab" data-tab="saves">💾 SAVED GAMES</button>
+        </div>
+        <div class="home-panel" data-panel="briefing">
+        <div class="briefing-box">
+            <strong>MISSION OBJECTIVE:</strong> Retake <strong id="brief-city">New York City</strong> from the zombie infestation! Advance through avenues, intersections, and city blocks to destroy all <strong>7 Mutated Hives</strong> and clear zombie forces across all <strong>6 City Districts</strong> while defending your <span id="brief-hq">Battery Park</span> HQ.<br><br>
+            <strong>URBAN WARFARE &amp; HIVE INTEL:</strong><br>
+            • <strong>6 <span id="brief-city-short">NYC</span> Districts:</strong> Reclaim <span id="brief-districts"><em>Battery Park LZ</em>, <em>Financial District</em>, <em>SoHo &amp; Village</em>, <em>Lower East Side</em>, <em>Midtown &amp; Times Sq</em>, and <em>Central Park North</em></span> for Scrap &amp; Fuel liberation bonuses.<br>
+            • <strong>4 Mutated Hive Classes:</strong> <em>Subway Breach Hives</em> (Runners), <em>Spore Spire Hives</em> (Acid Spitters), <em>Flesh-Foundry Hives</em> (Juggernauts), and the <em>Apex Overmind Hive</em> (Elite Waves).<br>
+            • <strong>Urban Economy &amp; Combined Arms:</strong> Claim city <strong>Supply Depots [R]</strong>, deploy <strong>Battalions [N]</strong>, load troops into <strong>Armored Vehicles [M]</strong> (UH-60 Black Hawks fly over skyscrapers &amp; rubble), fortify streets with <strong>Walls [L] / Gates [G]</strong>, and call <strong>Howitzer [Z]</strong> or <strong>Cruise Missile [I]</strong> strikes.<br>
+            • <strong>Survivors &amp; Hostile Mercenaries:</strong> Cyan <em>Survivor Signals</em> <strong>[J]</strong> mark <em>estimated</em> survivor zones (some are false leads). Right-click a <em>Locked Shelter</em> door with a ground unit to breach it, or right-click survivors at an <em>Armed Outpost</em> to evacuate them — then escort or transport them to your HQ, Barracks or Battalion HQ. Beware <em>Bandit Territories</em>: fortified mercenary gangs that fight both you and the infected.<br>
+            • <strong>Infection &amp; Medics:</strong> Zombie scratches can infect humans (☣) — they turn after a short delay. Train <em>Combat Medics</em> at the Barracks [M] to cure them (6 treatments, then a recharge). Rescued survivors join your command; bring them near HQ and use <em>Return to HQ [R]</em>.<br>
+            • <strong>Logistics &amp; Armor:</strong> Structures take time to build (Engineers nearby speed it up). New <em>Rocket Trucks, Flame APCs, Apache gunships &amp; B-1B Bombers</em> at the Motor Pool; <em>Combat Mechanics</em> [R] repair buildings &amp; vehicles; abandoned civilian cars can be hotwired by infantry. Toggle <strong>∞ RESOURCES</strong> (bottom-left) any time.<br>
+            • <strong>Supply Logistics:</strong> Every weapon has <em>limited ammunition</em>, troops get <em>hungry</em> and vehicles burn <em>fuel</em>. Keep <strong>Supply Trucks [U] / Heavy [H] / Tracked [K]</strong> and the <strong>Supply Chinook</strong> near your forces — <strong>RESUPPLY [E]</strong>, <strong>TRANSFER [F]</strong>, and <strong>REFILL AT HQ [Q]</strong> (costs Scrap &amp; Fuel).<br>
+            • <strong>Air Power:</strong> Build an <strong>Airbase [P]</strong> at the HQ to produce aircraft and store up to 3 helicopters &amp; 3 planes (stored aircraft refuel). Helicopters <strong>LAND / TAKE OFF [O]</strong> to load troops, or <em>rappel</em> them out while hovering. The infected now act as a <em>hive mind</em> — gunfire draws coordinated packs.<br>
+            • <strong>Movement &amp; Infinite Map:</strong> Soldiers and vehicles now have <em>momentum</em> — they build up speed, brake and turn like the real thing (tanks pivot, trucks need room to stop). Pick <strong>∞ INFINITE MAP MODE</strong> on the City Map tab for an endless city that streams in around your forces.<br>
+            • <strong>Controls:</strong> <strong>W A S D / Arrow Keys</strong> Move camera &bull; <strong>X</strong> Stop &bull; <strong>H</strong> Hold &bull; <strong>U</strong> Unload &bull; <strong>Mouse Wheel / +/-</strong> Zoom &bull; <strong>Space</strong> Tactical Pause &bull; <strong>F1–F4</strong> Formations &bull; <strong>[1]–[6]</strong> Squads &bull; <strong>💾</strong> Save / Load.
+        </div>
+        </div>
+        <div class="home-panel" data-panel="map" style="display:none">
+            <div class="briefing-box">
+                <div class="mode-row">
+                    <button class="home-mini-btn mode-btn" data-mode="standard">🏙 STANDARD CAMPAIGN (DEFAULT)</button>
+                    <button class="home-mini-btn mode-btn" data-mode="infinite">∞ INFINITE MAP MODE</button>
+                </div>
+                <div id="mode-help" class="set-help" style="margin-bottom:6px;"></div>
+                <div style="color:#7ee787; margin-bottom:6px;">SELECT AN AREA OF OPERATIONS — applies when you deploy a new game.</div>
+                <div id="map-cards" class="map-cards"></div>
+            </div>
+        </div>
+        <div class="home-panel" data-panel="settings" style="display:none">
+            <div class="briefing-box" id="settings-box">
+                <div class="set-row"><div><span class="set-label">GAME MODE / DIFFICULTY</span><span class="set-help" id="set-diff-help"></span></div>
+                    <select id="set-difficulty"><option value="recruit">Recruit (Relaxed)</option><option value="standard">Standard (Default)</option><option value="veteran">Veteran (Hardcore)</option></select></div>
+                <div class="set-row"><div><span class="set-label">ZOMBIE DENSITY</span><span class="set-help">Size of the infestation (new games only).</span></div>
+                    <select id="set-density"><option value="10">Full Outbreak — 10x (Default)</option><option value="5">Reduced — 5x</option><option value="1">Classic — 1x</option></select></div>
+                <div class="set-row"><div><span class="set-label">LIMITED AMMUNITION</span><span class="set-help">Weapons run dry and need supply vehicles.</span></div><input type="checkbox" id="set-ammo"></div>
+                <div class="set-row"><div><span class="set-label">TROOP HUNGER</span><span class="set-help">Human troops need rations or they starve.</span></div><input type="checkbox" id="set-hunger"></div>
+                <div class="set-row"><div><span class="set-label">VEHICLE FUEL</span><span class="set-help">Vehicles burn fuel; aircraft crash when empty.</span></div><input type="checkbox" id="set-fuel"></div>
+                <div class="set-row"><div><span class="set-label">START WITH ∞ RESOURCES</span><span class="set-help">Sandbox: deploy with Infinite Resources on.</span></div><input type="checkbox" id="set-infinite"></div>
+                <div class="set-row"><div><span class="set-label">∞ RENDER DISTANCE</span><span class="set-help">Infinite Map: chunks drawn in full detail around your forces.</span></div>
+                    <select id="set-inf-render"><option value="1">1 chunk</option><option value="2">2 chunks (Default)</option><option value="3">3 chunks</option><option value="4">4 chunks</option></select></div>
+                <div class="set-row"><div><span class="set-label">∞ SIMULATION DISTANCE</span><span class="set-help">Infinite Map: world loaded around your forces so hordes can gather & travel.</span></div>
+                    <select id="set-inf-load"><option value="2">2 chunks</option><option value="3">3 chunks (Default)</option><option value="4">4 chunks</option><option value="5">5 chunks</option></select></div>
+                <div class="set-row"><div><span class="set-label">AUTOSAVE</span><span class="set-help">Saves to the Autosave slot every 2 minutes.</span></div><input type="checkbox" id="set-autosave"></div>
+                <div class="set-row"><span class="set-help">Logistics toggles &amp; difficulty apply immediately; map &amp; density apply to the next deployment.</span><button class="home-mini-btn" id="btn-set-default">RESET TO DEFAULT</button></div>
+            </div>
+        </div>
+        <div class="home-panel" data-panel="saves" style="display:none">
+            <div class="briefing-box">
+                <div id="save-slots"></div>
+                <div class="save-io">
+                    <button id="btn-export-save" title="Download the current game as a .json file">⬇ EXPORT CURRENT GAME</button>
+                    <button id="btn-import-save" title="Load a game from an exported .json file">⬆ IMPORT SAVE FILE</button>
+                    <input type="file" id="import-save-file" accept=".json,application/json" style="display:none">
+                </div>
+            </div>
+        </div>
+        <div class="home-actions">
+            <button id="btn-resume" class="deploy-btn alt" style="display:none">▶ RESUME OPERATION</button>
+            <button id="btn-deploy" class="deploy-btn">DEPLOY TO BATTERY PARK LZ</button>
+        </div>
+        <div id="home-note"></div>
+    </div>
+</div>
+
+<!-- Update 5: Supply Transfer Modal -->
+<div id="transfer-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-card" style="max-width:620px; border-color:#d29922;">
+        <div class="modal-title" style="font-size:28px;">SUPPLY TRANSFER</div>
+        <div class="modal-sub" id="xfer-title" style="color:#f2cc60;">A ➜ B</div>
+        <div id="xfer-cap" style="font-size:15px; color:#8b949e; margin-bottom:6px;"></div>
+        <div class="briefing-box" style="max-height:330px; overflow-y:auto; padding:6px 10px;">
+            <table class="xfer-table">
+                <thead><tr><th style="text-align:left">SUPPLY TYPE</th><th>SENDER</th><th>RECEIVER</th><th>TRANSFER</th><th></th></tr></thead>
+                <tbody id="xfer-rows"></tbody>
+            </table>
+        </div>
+        <button id="btn-xfer-go" class="deploy-btn" style="font-size:20px; padding:6px 22px;">TRANSFER</button>
+        <button id="btn-xfer-cancel" class="tactical-btn" style="margin-left:10px;">CANCEL</button>
+    </div>
+</div>
+
+<!-- Victory / Defeat Modal -->
+<div id="end-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-card" id="end-card">
+        <div class="modal-title" id="end-title">NEW YORK CITY RECLAIMED</div>
+        <div class="modal-sub" id="end-sub">ALL 6 DISTRICTS LIBERATED FROM INFESTATION</div>
+        <div class="briefing-box" id="end-stats"></div>
+        <button id="btn-restart" class="deploy-btn">REDEPLOY NEW OPERATION</button>
+    </div>
+</div>
+<!-- GAME SCRIPTS — loaded in this order (the build inlines them, in the same order, into dist/index.html) -->
+    <script src="src/data/config.js"></script>
+    <script src="src/data/settings.js"></script>
+    <script src="src/data/definitions.js"></script>
+    <script src="src/engine/sound.js"></script>
+    <script src="src/engine/sprites.js"></script>
+    <script src="src/game/game.js"></script>
+    <script src="src/game/world-map.js"></script>
+    <script src="src/game/infinite-map.js"></script>
+    <script src="src/game/entities.js"></script>
+    <script src="src/game/survivors-mercs.js"></script>
+    <script src="src/game/input.js"></script>
+    <script src="src/game/commands.js"></script>
+    <script src="src/game/construction-economy.js"></script>
+    <script src="src/game/friendly-units.js"></script>
+    <script src="src/game/zombies.js"></script>
+    <script src="src/game/hive-mind.js"></script>
+    <script src="src/game/waves.js"></script>
+    <script src="src/game/navigation.js"></script>
+    <script src="src/game/movement-physics.js"></script>
+    <script src="src/game/combat.js"></script>
+    <script src="src/game/spitter-acid.js"></script>
+    <script src="src/game/aircraft.js"></script>
+    <script src="src/game/supply.js"></script>
+    <script src="src/game/ammo-fuel-hunger.js"></script>
+    <script src="src/game/medical-repair.js"></script>
+    <script src="src/game/spatial-fog.js"></script>
+    <script src="src/game/home-save.js"></script>
+    <script src="src/game/hud.js"></script>
+    <script src="src/game/command-grid.js"></script>
+    <script src="src/game/render.js"></script>
+    <script src="src/game/render-entities.js"></script>
+    <script src="src/game/minimap.js"></script>
+    <script src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,678 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    image-rendering: pixelated;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #090c10;
+    color: #e6edf3;
+    font-family: 'VT323', monospace;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Top Tactical Resource & Control Bar */
+#top-bar {
+    height: 44px;
+    min-height: 44px;
+    background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+    border-bottom: 2px solid #30363d;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    gap: 8px;
+    z-index: 20;
+}
+
+.res-group, .status-group, .top-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.res-pill {
+    background: #12171e;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 2px 10px;
+    font-size: 19px;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.res-scrap { color: #f2cc60; border-color: #6e5619; }
+.res-fuel { color: #58a6ff; border-color: #1f4e8c; }
+.res-pop { color: #56d364; border-color: #235c2b; }
+.res-sectors { color: #79c0ff; border-color: #265d8f; }
+.res-hives { color: #ff7b72; border-color: #7a2723; }
+.res-surge { color: #ffa657; border-color: #7c4416; }
+.res-survivors { color: #56d4dd; border-color: #1b5e63; font-size: 17px; }
+/* Update 5: supply inventory chips */
+#supply-inv { display: none; flex-wrap: wrap; gap: 3px; margin-top: 2px; max-height: 44px; overflow-y: auto; }
+.inv-chip { background: #1d1a10; border: 1px solid #6e5619; border-radius: 3px; padding: 0 5px; font-size: 13px; color: #f2cc60; }
+.inv-chip.empty { opacity: 0.45; }
+.xfer-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.xfer-table td, .xfer-table th { padding: 2px 6px; text-align: center; border-bottom: 1px solid #21262d; }
+.xfer-table input { width: 70px; background: #0d1117; color: #f2cc60; border: 1px solid #484f58; font-family: 'VT323', monospace; font-size: 16px; }
+
+/* Update 2: Survivor intel HUD (overlay, keeps the top bar layout unchanged) */
+#intel-hud {
+    position: absolute;
+    left: 18px;
+    bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 15;
+}
+#intel-hud .res-pill { background: rgba(18, 23, 30, 0.9); }
+/* Update 4: Infinite resources toggle */
+#btn-infinite.infinite-on {
+    background: #1c3826;
+    border-color: #3fb950;
+    color: #7ee787;
+    box-shadow: 0 0 8px rgba(63, 185, 80, 0.55);
+}
+.res-pill.infinite { box-shadow: 0 0 8px rgba(63, 185, 80, 0.6); }
+
+.dist-chip.intel { border-color: #1b5e63; background: #0f2224; color: #56d4dd; }
+.dist-chip.intel.confirmed { border-color: #56d4dd; background: #123236; color: #a5f3fc; }
+.dist-chip.bandit { border-color: #7c4416; background: #241810; color: #ffa657; }
+
+.tactical-btn {
+    background: linear-gradient(180deg, #21262d 0%, #161b22 100%);
+    color: #e6edf3;
+    border: 1px solid #484f58;
+    border-radius: 4px;
+    padding: 3px 9px;
+    font-family: 'VT323', monospace;
+    font-size: 17px;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    box-shadow: 0 2px 0 #090c10;
+}
+
+.tactical-btn:hover {
+    background: #2d333b;
+    border-color: #8b949e;
+    color: #ffffff;
+}
+
+.tactical-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.tactical-btn.active-pause {
+    background: #5a1e1e;
+    border-color: #f85149;
+    color: #ffdcd7;
+    animation: pulsePause 1.1s infinite alternate;
+}
+
+@keyframes pulsePause {
+    from { box-shadow: 0 0 4px rgba(248,81,73,0.4); }
+    to { box-shadow: 0 0 12px rgba(248,81,73,0.9); }
+}
+
+/* Main Battlefield Viewport */
+#game-wrapper {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    min-height: 200px;
+    background: #0a0d12;
+    overflow: hidden;
+}
+
+#game-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+}
+
+/* Radio Chatter Toast */
+#radio-banner {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(13, 17, 23, 0.92);
+    border: 1px solid #3fb950;
+    border-left: 4px solid #3fb950;
+    border-radius: 4px;
+    padding: 4px 14px;
+    font-size: 18px;
+    color: #7ee787;
+    letter-spacing: 0.8px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 15;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+
+#radio-banner.visible { opacity: 1; }
+
+/* Tactical Pause Watermark */
+#pause-banner {
+    position: absolute;
+    top: 46px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(122, 27, 27, 0.92);
+    border: 1px solid #ff7b72;
+    border-radius: 4px;
+    padding: 3px 16px;
+    font-size: 19px;
+    color: #ffdcd7;
+    letter-spacing: 1px;
+    pointer-events: none;
+    display: none;
+    z-index: 16;
+}
+
+/* Squad Control Groups & Formations Dock */
+#squad-dock {
+    height: 34px;
+    min-height: 34px;
+    background: #0e131a;
+    border-top: 1px solid #30363d;
+    border-bottom: 1px solid #21262d;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    gap: 8px;
+    z-index: 20;
+}
+
+.dock-section {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    overflow-x: auto;
+}
+
+.dock-label {
+    font-size: 16px;
+    color: #8b949e;
+    margin-right: 2px;
+}
+
+.grp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 16px;
+    color: #c9d1d9;
+    cursor: pointer;
+}
+
+.grp-chip:hover { border-color: #58a6ff; color: #fff; }
+.grp-chip.has-units { border-color: #2ea043; background: #122418; color: #7ee787; }
+.grp-chip.active-grp { border-color: #f2cc60; background: #2c2310; color: #ffd166; }
+
+.grp-clear {
+    color: #f85149;
+    font-weight: bold;
+    margin-left: 3px;
+    padding: 0 2px;
+}
+
+.grp-clear:hover { color: #ffaba8; }
+
+.form-btn {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    color: #8b949e;
+    font-family: 'VT323', monospace;
+    font-size: 15px;
+    padding: 1px 7px;
+    cursor: pointer;
+}
+
+.form-btn:hover { color: #e6edf3; border-color: #6e7681; }
+.form-btn.active {
+    background: #1c2d42;
+    border-color: #58a6ff;
+    color: #79c0ff;
+}
+
+/* Bottom RTS Command Console */
+#bottom-console {
+    height: 168px;
+    min-height: 168px;
+    background: linear-gradient(180deg, #131820 0%, #0b0e14 100%);
+    border-top: 2px solid #30363d;
+    display: grid;
+    grid-template-columns: 168px 1fr 336px;
+    gap: 8px;
+    padding: 6px 10px;
+    z-index: 20;
+}
+
+/* Radar Minimap */
+#minimap-frame {
+    width: 156px;
+    height: 156px;
+    border: 2px solid #30363d;
+    border-radius: 4px;
+    background: #06090d;
+    position: relative;
+    overflow: hidden;
+}
+
+#minimap-canvas {
+    width: 156px;
+    height: 156px;
+    display: block;
+    cursor: pointer;
+}
+
+/* Center Selection & Telemetry Panel */
+#selection-panel {
+    background: #0f141b;
+    border: 1px solid #282e36;
+    border-radius: 5px;
+    padding: 8px 10px;
+    display: flex;
+    gap: 10px;
+    overflow: hidden;
+}
+
+#portrait-box {
+    width: 84px;
+    min-width: 84px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+#portrait-canvas {
+    width: 56px;
+    height: 56px;
+}
+
+#hp-bar-outer {
+    width: 100%;
+    height: 7px;
+    background: #21262d;
+    border-radius: 3px;
+    margin-top: 5px;
+    overflow: hidden;
+}
+
+#hp-bar-inner {
+    height: 100%;
+    width: 100%;
+    background: #3fb950;
+    transition: width 0.1s linear;
+}
+
+#details-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+#sel-title {
+    font-size: 22px;
+    color: #f0f6fc;
+    letter-spacing: 0.8px;
+}
+
+#sel-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 16px;
+    color: #79c0ff;
+}
+
+#sel-desc {
+    font-size: 15px;
+    color: #8b949e;
+    line-height: 1.15;
+    overflow-y: auto;
+}
+
+#district-overview-list {
+    display: none;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 3px;
+    max-height: 64px;
+    overflow-y: auto;
+}
+
+.dist-chip {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.1s ease;
+}
+
+.dist-chip:hover { border-color: #58a6ff; }
+.dist-chip.reclaimed { border-color: #2ea043; background: #122418; color: #7ee787; }
+.dist-chip.contested { border-color: #d29922; background: #292010; color: #ffd166; }
+.dist-chip.infested { border-color: #7a2723; background: #221114; color: #ff7b72; }
+
+#passenger-bay {
+    display: none;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.pax-chip {
+    background: #1f2937;
+    border: 1px solid #58a6ff;
+    border-radius: 3px;
+    padding: 0 6px;
+    font-size: 14px;
+    color: #a5d6ff;
+    cursor: pointer;
+}
+
+.pax-chip:hover {
+    background: #7a2723;
+    border-color: #ff7b72;
+    color: #fff;
+}
+
+#queue-container {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+
+#queue-progress-bg {
+    flex: 1;
+    height: 8px;
+    background: #21262d;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+#queue-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #f2cc60;
+}
+
+#multi-grid {
+    display: none;
+    flex: 1;
+    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+    gap: 5px;
+    overflow-y: auto;
+    align-content: start;
+}
+
+.multi-unit-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 3px 5px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.multi-unit-card:hover { border-color: #58a6ff; }
+
+.multi-unit-hp {
+    height: 4px;
+    background: #21262d;
+    border-radius: 2px;
+    margin-top: 3px;
+    overflow: hidden;
+}
+
+.multi-unit-hp-fill {
+    height: 100%;
+    background: #3fb950;
+}
+
+/* Right 4x3 Tactical Command Grid */
+#command-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 5px;
+    background: #0f141b;
+    border: 1px solid #282e36;
+    border-radius: 5px;
+    padding: 5px;
+}
+
+.cmd-btn {
+    background: linear-gradient(180deg, #1f2630 0%, #141920 100%);
+    border: 1px solid #3b434d;
+    border-radius: 4px;
+    color: #e6edf3;
+    font-family: 'VT323', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    padding: 2px;
+    transition: all 0.08s ease;
+}
+
+.cmd-btn:hover:not(.disabled):not(.empty) {
+    background: linear-gradient(180deg, #2b3544 0%, #1c232d 100%);
+    border-color: #58a6ff;
+    transform: translateY(-1px);
+}
+
+.cmd-btn.active {
+    background: #1c3826;
+    border-color: #3fb950;
+    box-shadow: inset 0 0 8px rgba(63,185,80,0.45);
+}
+
+.cmd-btn.disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+}
+
+.cmd-btn.empty {
+    background: #0c1015;
+    border-color: #1c2128;
+    cursor: default;
+}
+
+.cmd-hotkey {
+    position: absolute;
+    top: 1px;
+    right: 4px;
+    font-size: 13px;
+    color: #f2cc60;
+}
+
+.cmd-icon { font-size: 18px; line-height: 1; }
+.cmd-label { font-size: 13px; line-height: 1.05; text-align: center; margin-top: 2px; }
+
+/* Tooltip */
+#cmd-tooltip {
+    position: fixed;
+    background: rgba(13, 17, 23, 0.96);
+    border: 1px solid #58a6ff;
+    border-radius: 5px;
+    padding: 7px 10px;
+    max-width: 280px;
+    pointer-events: none;
+    z-index: 100;
+    display: none;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.75);
+}
+
+#tt-title { font-size: 19px; color: #f0f6fc; }
+#tt-cost { font-size: 16px; color: #f2cc60; margin: 2px 0; }
+#tt-desc { font-size: 15px; color: #c9d1d9; line-height: 1.2; }
+
+/* Mission Briefing & End-Game Modal Overlays */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 9, 14, 0.86);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 16px;
+}
+
+.modal-card {
+    background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+    border: 2px solid #3fb950;
+    border-radius: 8px;
+    max-width: 710px;
+    width: 100%;
+    padding: 22px 26px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.85);
+    text-align: center;
+}
+
+.modal-title {
+    font-size: 40px;
+    color: #f0f6fc;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 0 #000;
+}
+
+.modal-sub {
+    font-size: 20px;
+    color: #7ee787;
+    margin-bottom: 14px;
+}
+
+.briefing-box {
+    background: #0b0f14;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 17px;
+    line-height: 1.3;
+    color: #c9d1d9;
+    margin-bottom: 18px;
+}
+
+.deploy-btn {
+    background: linear-gradient(180deg, #2ea043 0%, #1f6feb 100%);
+    border: 2px solid #7ee787;
+    border-radius: 6px;
+    color: #ffffff;
+    font-family: 'VT323', monospace;
+    font-size: 26px;
+    letter-spacing: 1.5px;
+    padding: 10px 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(46, 160, 67, 0.45);
+    transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+.deploy-btn:hover {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+}
+
+/* Update 5: home screen tabs, city maps, settings & saved games */
+.home-tabs { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+.home-tab {
+    background: #0b0f14; border: 1px solid #30363d; border-radius: 4px; color: #8b949e;
+    font-family: 'VT323', monospace; font-size: 19px; letter-spacing: 1px; padding: 3px 14px; cursor: pointer;
+}
+.home-tab:hover { color: #c9d1d9; border-color: #3fb950; }
+.home-tab.active { background: #1c3826; border-color: #3fb950; color: #7ee787; }
+.home-panel .briefing-box { max-height: 52vh; overflow-y: auto; }
+.map-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.map-card {
+    background: #11161d; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 4px;
+}
+.map-card:hover { border-color: #58a6ff; }
+.map-card.selected { border-color: #3fb950; box-shadow: 0 0 10px rgba(63,185,80,0.35); }
+.map-card canvas { width: 100%; height: auto; image-rendering: pixelated; border: 1px solid #21262d; background: #05080c; }
+.map-card .mc-name { color: #f0f6fc; font-size: 20px; }
+.map-card .mc-sub { color: #7ee787; font-size: 15px; }
+.map-card .mc-desc { color: #8b949e; font-size: 14px; line-height: 1.15; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px dashed #21262d; }
+.set-row:last-child { border-bottom: none; }
+.set-row .set-label { color: #c9d1d9; }
+.set-row .set-help { color: #8b949e; font-size: 14px; display: block; }
+.set-row select, .set-row input[type=checkbox] { font-family: 'VT323', monospace; font-size: 17px; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 4px; padding: 1px 6px; }
+.set-row input[type=checkbox] { width: 18px; height: 18px; accent-color: #3fb950; }
+.save-slot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 4px; border-bottom: 1px dashed #21262d; }
+.save-slot .ss-name { color: #f0f6fc; min-width: 92px; }
+.save-slot .ss-meta { color: #8b949e; font-size: 15px; flex: 1; text-align: left; }
+.save-slot .ss-meta.empty { color: #484f58; font-style: italic; }
+.save-slot button, .save-io button, .home-mini-btn {
+    font-family: 'VT323', monospace; font-size: 16px; background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 4px; padding: 1px 9px; cursor: pointer;
+}
+.save-slot button:hover:not(:disabled), .save-io button:hover, .home-mini-btn:hover { border-color: #58a6ff; color: #f0f6fc; }
+.save-slot button:disabled { opacity: 0.35; cursor: default; }
+.save-slot button.warn { border-color: #d29922; color: #ffd166; }
+.save-io { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.home-actions { display: flex; gap: 12px; justify-content: center; }
+.mode-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 6px; }
+.mode-btn.active { border-color: #3fb950; color: #7ee787; background: #1c3826; }
+.deploy-btn.alt { background: linear-gradient(180deg, #30363d 0%, #161b22 100%); border-color: #8b949e; box-shadow: none; }
+#home-note { min-height: 20px; margin-top: 8px; color: #ffd166; font-size: 16px; }
+
+@media (max-width: 860px) {
+    #bottom-console {
+        grid-template-columns: 120px 1fr 240px;
+        height: 154px;
+        min-height: 154px;
+    }
+    #minimap-frame, #minimap-canvas {
+        width: 112px;
+        height: 112px;
+    }
+    .res-pill { font-size: 15px; padding: 2px 6px; }
+}
